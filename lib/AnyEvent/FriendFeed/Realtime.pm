@@ -22,8 +22,15 @@ sub new {
     my $timer;
     my $long_poll; $long_poll = sub {
         http_get $uri, headers => { Authorization => "Basic $auth" },
+            on_header => sub {
+                my $hdrs = shift;
+                if ($hdrs->{Status} ne '200') {
+                    ($args{on_error} || sub { die @_ })->("$hdrs->{Status}: $hdrs->{Reason}");
+                }
+            },
             sub {
                 my($body, $headers) = @_;
+                return unless $body;
                 my $res = JSON->new->decode($body);
                 for my $entry (@{$res->{entries}}) {
                     ($args{on_entry} || sub {})->($entry);
