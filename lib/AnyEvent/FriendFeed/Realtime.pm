@@ -34,7 +34,7 @@ sub new {
                     $uri = URI->new("http://friendfeed.com/api/updates/$args{method}");
                     $uri->query_form(token => $token, format => 'json');
                     $timer = AnyEvent->timer(
-                        after => 1, #$res->{update}{poll_interval},
+                        after => $res->{update}{poll_interval},
                         cb => $long_poll,
                     );
                 }
