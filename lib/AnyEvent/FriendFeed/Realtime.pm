@@ -6,6 +6,7 @@ our $VERSION = '0.01';
 
 use AnyEvent;
 use AnyEvent::HTTP;
+use Encode;
 use JSON;
 use MIME::Base64;
 use URI;
@@ -33,7 +34,7 @@ sub new {
             sub {
                 my($body, $headers) = @_;
                 return unless $body;
-                my $res = JSON->new->decode($body);
+                my $res = JSON::decode_json($body);
                 for my $entry (@{$res->{entries}}) {
                     ($args{on_entry} || sub {})->($entry);
                 }
