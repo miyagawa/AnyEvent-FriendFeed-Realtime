@@ -17,7 +17,7 @@ sub new {
     my $auth = MIME::Base64::encode( join(":", $args{username}, $args{remote_key}) );
 
     my $uri = URI->new("http://friendfeed.com/api/updates"); # initialize token
-    $uri->query_form(token => $token, format => 'json');
+    $uri->query_form(format => 'json');
 
     my $timer;
     my $long_poll; $long_poll = sub {
@@ -26,7 +26,9 @@ sub new {
                 my $hdrs = shift;
                 if ($hdrs->{Status} ne '200') {
                     ($args{on_error} || sub { die @_ })->("$hdrs->{Status}: $hdrs->{Reason}");
+                    return;
                 }
+                return 1;
             },
             sub {
                 my($body, $headers) = @_;
