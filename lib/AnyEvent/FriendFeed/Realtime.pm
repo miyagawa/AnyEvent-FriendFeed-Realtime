@@ -9,51 +9,65 @@ use AnyEvent::HTTP;
 use Encode;
 use JSON;
 use MIME::Base64;
+use Scalar::Util;
 use URI;
 
 sub new {
     my($class, %args) = @_;
 
     my $token;
-    my $auth = MIME::Base64::encode( join(":", $args{username}, $args{remote_key}) );
+    my $headers = {};
+    if ($args{username}) {
+        my $auth = MIME::Base64::encode( join(":", $args{username}, $args{remote_key}) );
+        $headers->{Authorization} = "Basic $auth";
+    }
 
     my $uri = URI->new("http://friendfeed.com/api/updates"); # initialize token
     $uri->query_form(format => 'json');
 
-    my $timer;
-    my $long_poll; $long_poll = sub {
-        http_get $uri, headers => { Authorization => "Basic $auth" },
-            on_header => sub {
-                my $hdrs = shift;
-                if ($hdrs->{Status} ne '200') {
-                    ($args{on_error} || sub { die @_ })->("$hdrs->{Status}: $hdrs->{Reason}");
-                    return;
-                }
-                return 1;
-            },
-            sub {
-                my($body, $headers) = @_;
-                return unless $body;
-                my $res = JSON::decode_json($body);
-                for my $entry (@{$res->{entries}}) {
-                    ($args{on_entry} || sub {})->($entry);
-                }
+    my $self = bless {}, $class;
 
-                if ($res->{update}) {
-                    $token = $res->{update}{token};
-                    $uri = URI->new("http://friendfeed.com/api/updates/$args{method}");
-                    $uri->query_form(token => $token, format => 'json');
-                    $timer = AnyEvent->timer(
-                        after => $res->{update}{poll_interval},
-                        cb => $long_poll,
-                    );
-                }
+    my $long_poll; $long_poll = sub {
+        warn $uri;
+        http_get $uri, headers => $headers, on_header => sub {
+            my $hdrs = shift;
+            if ($hdrs->{Status} ne '200') {
+                ($args{on_error} || sub { die @_ })->("$hdrs->{Status}: $hdrs->{Reason}");
+                return;
             }
-        };
+            return 1;
+        }, sub {
+            my($body, $headers) = @_;
+            return unless $body;
+            my $res = JSON::decode_json($body);
+
+            if ($res->{errorCode}) {
+                ($args{on_error} || sub { die @_ })->($res->{errorCode});
+                return;
+            }
+
+            for my $entry (@{$res->{entries}}) {
+                ($args{on_entry} || sub {})->($entry);
+            }
+
+            if ($res->{update}) {
+                $token = $res->{update}{token};
+                $uri = URI->new("http://friendfeed.com/api/updates/$args{method}");
+                $uri->query_form(token => $token, format => 'json');
+                $self->{_timer} = AnyEvent->timer(
+                    after => $res->{update}{poll_interval},
+                    cb => $long_poll,
+                );
+                Scalar::Util::weaken($self);
+            }
+        }
+    };
+
+    $self->{guard} = AnyEvent::Util::guard { undef $long_poll };
 
     $long_poll->();
 
-    bless { _timer => $timer }, $class;
+    return $self;
 }
 
 1;
