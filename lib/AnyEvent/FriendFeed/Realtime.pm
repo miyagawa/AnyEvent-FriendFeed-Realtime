@@ -28,7 +28,6 @@ sub new {
     my $self = bless {}, $class;
 
     my $long_poll; $long_poll = sub {
-        warn $uri;
         http_get $uri, headers => $headers, on_header => sub {
             my $hdrs = shift;
             if ($hdrs->{Status} ne '200') {
