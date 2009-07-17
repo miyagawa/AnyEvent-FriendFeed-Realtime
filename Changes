@@ -1,4 +1,7 @@
 Revision history for Perl extension AnyEvent::FriendFeed::Realtime
 
+0.02  Thu Jul 16 20:09:55 PDT 2009
+        - Remove debug bits
+
 0.01  Mon Jul 13 15:08:21 2009
         - original version
