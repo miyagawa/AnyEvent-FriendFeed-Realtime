@@ -1,5 +1,9 @@
 Revision history for Perl extension AnyEvent::FriendFeed::Realtime
 
+0.03  Mon Jul 20 11:34:12 PDT 2009
+        - Updated API and endpoint to v2. 'method' should now be 'request'.
+        - entry data structure has changed and is incompatible.
+
 0.02  Thu Jul 16 20:09:55 PDT 2009
         - Remove debug bits
 
