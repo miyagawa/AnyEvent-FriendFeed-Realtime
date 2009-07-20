@@ -11,19 +11,19 @@ use JSON;
 use MIME::Base64;
 use Scalar::Util;
 use URI;
+use URI::QueryParam;
 
 sub new {
     my($class, %args) = @_;
 
-    my $token;
     my $headers = {};
     if ($args{username}) {
         my $auth = MIME::Base64::encode( join(":", $args{username}, $args{remote_key}) );
         $headers->{Authorization} = "Basic $auth";
     }
 
-    my $uri = URI->new("http://friendfeed.com/api/updates"); # initialize token
-    $uri->query_form(format => 'json');
+    my $uri = URI->new("http://friendfeed-api.com/v2/updates$args{request}");
+    $uri->query_param(updates => 1);
 
     my $self = bless {}, $class;
 
@@ -31,7 +31,7 @@ sub new {
         http_get $uri, headers => $headers, on_header => sub {
             my $hdrs = shift;
             if ($hdrs->{Status} ne '200') {
-                ($args{on_error} || sub { die @_ })->("$hdrs->{Status}: $hdrs->{Reason}");
+                ($args{on_error} || sub { die @_ })->("$uri: $hdrs->{Status} $hdrs->{Reason}");
                 return;
             }
             return 1;
@@ -49,15 +49,10 @@ sub new {
                 ($args{on_entry} || sub {})->($entry);
             }
 
-            if ($res->{update}) {
-                $token = $res->{update}{token};
-                $uri = URI->new("http://friendfeed.com/api/updates/$args{method}");
-                $uri->query_form(token => $token, format => 'json');
-                $self->{_timer} = AnyEvent->timer(
-                    after => $res->{update}{poll_interval},
-                    cb => $long_poll,
-                );
-                Scalar::Util::weaken($self);
+            if ($res->{realtime}) {
+                $uri = $uri->clone;
+                $uri->query_param(cursor => $res->{realtime}{cursor});
+                $long_poll->();
             }
         }
     };
@@ -85,12 +80,12 @@ AnyEvent::FriendFeed::Realtime - Subscribe to FriendFeed Real-time API
   use AnyEvent::FriendFeed::Realtime;
 
   my $client = AnyEvent::FriendFeed::Realtime->new(
-      username   => $user,       # optional
-      remote_key => $remote_key, # optional: https://friendfeed.com/account/api
-      method     => "home",      # "user/NICKNAME/friends", "list/NICKNAME", "room/NICKNAME", "user/NICKNAME"
+      username   => $user,        # optional
+      remote_key => $remote_key,  # optional: https://friendfeed.com/account/api
+      request    => "/feed/home", # or "/feed/NICKNAME/friends", "/search?q=friendfeed"
       on_update  => sub {
           my $entry = shift;
-          # See http://code.google.com/p/friendfeed-api/wiki/ApiDocumentation for the data structure
+          # See http://friendfeed.com/api/documentation for the data structure
       },
   );
 
@@ -110,6 +105,6 @@ it under the same terms as Perl itself.
 
 =head1 SEE ALSO
 
-L<AnyEvent::HTTP>, L<AnyEvent::Twitter::Stream>, L<http://code.google.com/p/friendfeed-api/wiki/ApiDocumentation>
+L<AnyEvent::HTTP>, L<AnyEvent::Twitter::Stream>, L<http://friendfeed.com/api/documentation>
 
 =cut
