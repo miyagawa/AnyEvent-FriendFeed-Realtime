@@ -37,7 +37,7 @@ sub new {
             return 1;
         }, sub {
             my($body, $headers) = @_;
-            return unless $body;
+            return $long_poll->() unless $body;
             my $res = JSON::decode_json($body);
 
             if ($res->{errorCode}) {
