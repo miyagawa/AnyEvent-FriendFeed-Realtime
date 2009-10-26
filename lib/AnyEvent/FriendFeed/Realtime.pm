@@ -83,7 +83,7 @@ AnyEvent::FriendFeed::Realtime - Subscribe to FriendFeed Real-time API
       username   => $user,        # optional
       remote_key => $remote_key,  # optional: https://friendfeed.com/account/api
       request    => "/feed/home", # or "/feed/NICKNAME/friends", "/search?q=friendfeed"
-      on_update  => sub {
+      on_entry   => sub {
           my $entry = shift;
           # See http://friendfeed.com/api/documentation for the data structure
       },
