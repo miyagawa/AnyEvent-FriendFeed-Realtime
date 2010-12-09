@@ -38,7 +38,9 @@ sub new {
         }, sub {
             my($body, $headers) = @_;
             return $long_poll->() unless $body;
-            my $res = JSON::decode_json($body);
+
+            my $res = eval { JSON::decode_json($body) };
+            return $long_poll->() if $@;
 
             if ($res->{errorCode}) {
                 ($args{on_error} || sub { die @_ })->($res->{errorCode});
